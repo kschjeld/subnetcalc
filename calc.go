@@ -13,6 +13,15 @@ func inet_ntoa(addrint int) string {
 		addrint&0xff)
 }
 
+func inet_ntob(addrint int) []byte {
+	return []byte{
+		byte((addrint >> 24) & 0xff),
+		byte((addrint >> 16) & 0xff),
+		byte((addrint >> 8) & 0xff),
+		byte(addrint & 0xff),
+	}
+}
+
 func inet_aton(addrstr string) int {
 	ip, _, err := net.ParseCIDR(addrstr)
 	if err != nil {
@@ -20,6 +29,15 @@ func inet_aton(addrstr string) int {
 	}
 	ip4 := ip.To4()
 
+	a := int(ip4[0]) << 24
+	b := int(ip4[1]) << 16
+	c := int(ip4[2]) << 8
+	d := int(ip4[3])
+
+	return a + b + c + d
+}
+
+func inet_bton(ip4 []byte) int {
 	a := int(ip4[0]) << 24
 	b := int(ip4[1]) << 16
 	c := int(ip4[2]) << 8

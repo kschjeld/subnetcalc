@@ -8,26 +8,28 @@ import (
 
 func main() {
 
-	_, err := subnetcalc.ParseSubnet("10.0.0.0/16")
+	s, err := subnetcalc.ParseSubnet("10.0.0.0/16")
 	if err != nil {
 		panic(err)
 	}
 	//s.Print()
 
-	ps := "10.0.0.0/16"
-	pnm := 16
-	print(ps, pnm)
+	//ps := "10.0.0.0/16"
+	//pnm := 16
+	//print(ps, pnm)
+	//
+	//// low
+	//print(ps, pnm+1)
+	//
+	//// high
+	//pip := inet_aton(ps)
+	//lip := subnet_last_address(pip, pnm+1)
+	//fip := lip + 1
+	//hip := fmt.Sprintf("%s/%d", inet_ntoa(fip), pnm+1)
+	//print(hip, pnm+1)
 
-	// low
-	print(ps, pnm+1)
-
-	// high
-	pip := inet_aton(ps)
-	lip := subnet_last_address(pip, pnm+1)
-	fip := lip + 1
-	hip := fmt.Sprintf("%s/%d", inet_ntoa(fip), pnm+1)
-	print(hip, pnm+1)
-
+	s.DivideRecursively(2)
+	s.Print(true)
 }
 
 func print(s string, sm int) {
