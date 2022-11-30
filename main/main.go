@@ -21,23 +21,62 @@ func main() {
 	res, err = s.AddReservationFor("192.168.1.1/22", "res-err")
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 
-	fmt.Printf("\n\nRanges:\n")
-
-	s.DivideRecursively(2)
-	s.Print(true)
-
-	res, err = s.Reserve(30, "open reservation 1")
+	res, err = s.FindFree(30)
+	if res != nil {
+		if err = res.MarkReserved("open reservation 1"); err != nil {
+			fmt.Printf("Error making reservation: %v", err)
+		}
+	}
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 
-	res, err = s.Reserve(30, "open reservation 2")
+	res, err = s.FindFree(30)
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
+	if res != nil {
+		if err = res.MarkReserved("open reservation 2"); err != nil {
+			fmt.Printf("Error making reservation: %v", err)
+		}
+	}
 
-	res, err = s.Reserve(30, "open reservation 3")
+	res, err = s.FindFree(30)
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
+	if res != nil {
+		if err = res.MarkReserved("open reservation 3"); err != nil {
+			fmt.Printf("Error making reservation: %v", err)
+		}
+	}
+
+	fmt.Printf("\n\n\n")
 
 	fmt.Printf("\n\nReservations:\n")
-	reservations := s.Filter(subnetcalc.FilterfuncReserved)
+	reservations := s.Collect(subnetcalc.FilterReserved)
 	for _, r := range reservations {
 		fmt.Printf(" %s %s\n", r.CIDR(), r.Reservation())
 	}
+
+	fmt.Printf("\n\n\nPlaying around with fresh data\n\n")
+	s, err = subnetcalc.ParseSubnet("10.0.0.0/16")
+
+	for i := s.Size(); i < 31; i++ {
+		res, err = s.FindFree(i)
+		fmt.Printf("Found free (size %d): %s %v\n", i, res.CIDR(), err)
+	}
+
+	fmt.Printf("\n\n\n")
+
+	res, err = s.FindFree(17)
+	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
+	if res != nil {
+		if err = res.MarkReserved("open reservation 4"); err != nil {
+			fmt.Printf("Error making reservation: %v", err)
+		}
+	}
+
+	fmt.Printf("\n\n\n")
+
+	for i := s.Size(); i < 31; i++ {
+		res, err = s.FindFree(i)
+		fmt.Printf("Found free (size %d): %s %v\n", i, res.CIDR(), err)
+	}
+
+	fmt.Printf("\n\n\n")
 }
