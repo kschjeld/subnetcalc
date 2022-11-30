@@ -18,12 +18,27 @@ type Subnet struct {
 	subReservations int
 }
 
-var ErrNotDividable = errors.New("unable to divide subnet")
+var ErrCouldNotParse = errors.New("could not parse subnet specification")
+var ErrNotDividable = errors.New("could not divide subnet")
 var ErrAlreadyReserved = errors.New("subnet is already reserved")
 var ErrDidNotFindSubnet = errors.New("could not find suitable subnet")
 
-var FilterReserved = func(s *Subnet) bool {
-	return s.Reservation() != ""
+func SelectReserved() func(s *Subnet) bool {
+	return func(s *Subnet) bool {
+		return s.Reservation() != ""
+	}
+}
+
+func SelectAvailable() func(s *Subnet) bool {
+	return func(s *Subnet) bool {
+		return s.Reservation() == "" && s.subReservations == 0
+	}
+}
+
+func SelectWithSize(size int) func(s *Subnet) bool {
+	return func(s *Subnet) bool {
+		return s.Size() == size
+	}
 }
 
 func Parse(s string) (*Subnet, error) {
@@ -31,12 +46,16 @@ func Parse(s string) (*Subnet, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Subnet{
+	subnet := &Subnet{
 		cidr:   *c,
 		parent: nil,
 		low:    nil,
 		high:   nil,
-	}, nil
+	}
+
+	subnet.initialize()
+
+	return subnet, nil
 }
 
 func (s *Subnet) CIDR() string {
@@ -52,7 +71,7 @@ func (s *Subnet) Size() int {
 }
 
 func (s *Subnet) FirstIP() string {
-	return s.cidr.net.IP.String()
+	return inetNToA(inetBToN(s.cidr.net.IP) + 1)
 }
 
 func (s *Subnet) LastIP() string {
@@ -61,39 +80,6 @@ func (s *Subnet) LastIP() string {
 
 func (s *Subnet) Reservation() string {
 	return s.reservation
-}
-
-func (s *Subnet) Divide() error {
-	if s == nil {
-		return nil
-	}
-	if s.low != nil && s.high != nil {
-		return nil
-	}
-
-	low, high, err := s.lowAndHigh()
-	if err != nil {
-		return err
-	}
-
-	if s.low == nil {
-		s.low = &Subnet{
-			cidr:   low,
-			parent: s,
-			low:    nil,
-			high:   nil,
-		}
-	}
-
-	if s.high == nil {
-		s.high = &Subnet{
-			cidr:   high,
-			parent: s,
-			low:    nil,
-			high:   nil,
-		}
-	}
-	return nil
 }
 
 func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
@@ -120,7 +106,7 @@ func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
 	}
 
 	if s.cidr.net.Contains(cidr.net.IP) {
-		_ = s.Divide()
+		_ = s.divide()
 		if s.low != nil && s.low.cidr.net.Contains(cidr.net.IP) {
 			return s.low.AddReservation(subnet, name)
 		} else if s.high != nil {
@@ -131,29 +117,42 @@ func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
 	return nil, ErrDidNotFindSubnet
 }
 
-func (s *Subnet) Collect(filterFunc func(s *Subnet) bool) []*Subnet {
+func (s *Subnet) Collect(filterFunc ...func(s *Subnet) bool) []*Subnet {
 	var res []*Subnet
 
-	if filterFunc(s) {
+	if s == nil {
+		return res
+	}
+
+	match := true
+	for _, fn := range filterFunc {
+		match = fn(s)
+		if !match {
+			break
+		}
+	}
+
+	if match {
 		res = append(res, s)
 	}
 
-	if s.low != nil {
-		res = append(res, s.low.Collect(filterFunc)...)
-	}
-	if s.high != nil {
-		res = append(res, s.high.Collect(filterFunc)...)
-	}
+	res = append(res, s.low.Collect(filterFunc...)...)
+	res = append(res, s.high.Collect(filterFunc...)...)
+
 	return res
 }
 
 func (s *Subnet) FindFree(requiredSize int) (*Subnet, error) {
+	if s == nil {
+		return nil, nil
+	}
+
 	if s.Size() == requiredSize && s.reservation == "" && s.subReservations == 0 {
 		return s, nil
 	}
 
 	if s.reservation == "" && s.Size() < requiredSize {
-		s.Divide()
+		s.divide()
 
 		if s.low != nil {
 			s, err := s.low.FindFree(requiredSize)
@@ -187,6 +186,53 @@ func (s *Subnet) Reserve(name string) error {
 		s.parent.updateSubReservations()
 	}
 
+	return nil
+}
+
+func (s *Subnet) initialize() {
+	if s == nil {
+		return
+	}
+
+	if s.Size() >= 31 {
+		return
+	}
+
+	s.divide()
+	s.low.initialize()
+	s.high.initialize()
+}
+
+func (s *Subnet) divide() error {
+	if s == nil {
+		return nil
+	}
+	if s.low != nil && s.high != nil {
+		return nil
+	}
+
+	low, high, err := s.lowAndHigh()
+	if err != nil {
+		return err
+	}
+
+	if s.low == nil {
+		s.low = &Subnet{
+			cidr:   low,
+			parent: s,
+			low:    nil,
+			high:   nil,
+		}
+	}
+
+	if s.high == nil {
+		s.high = &Subnet{
+			cidr:   high,
+			parent: s,
+			low:    nil,
+			high:   nil,
+		}
+	}
 	return nil
 }
 
@@ -226,7 +272,7 @@ func (s *Subnet) updateSubReservations() {
 func toCIDR(s string) (*CIDR, error) {
 	_, snet, err := net.ParseCIDR(s)
 	if err != nil {
-		return nil, err
+		return nil, ErrCouldNotParse
 	}
 	return &CIDR{
 		net: *snet,
