@@ -7,23 +7,23 @@ import (
 
 func main() {
 
-	s, err := subnetcalc.ParseSubnet("10.0.0.0/16")
+	s, err := subnetcalc.Parse("10.0.0.0/16")
 	if err != nil {
 		panic(err)
 	}
 
-	res, err := s.AddReservationFor("10.0.96.0/19", "res-1")
+	res, err := s.AddReservation("10.0.96.0/19", "res-1")
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 
-	res, err = s.AddReservationFor("10.0.223.128/25", "res-2")
+	res, err = s.AddReservation("10.0.223.128/25", "res-2")
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 
-	res, err = s.AddReservationFor("192.168.1.1/22", "res-err")
+	res, err = s.AddReservation("192.168.1.1/22", "res-err")
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 
 	res, err = s.FindFree(30)
 	if res != nil {
-		if err = res.MarkReserved("open reservation 1"); err != nil {
+		if err = res.Reserve("open reservation 1"); err != nil {
 			fmt.Printf("Error making reservation: %v", err)
 		}
 	}
@@ -32,7 +32,7 @@ func main() {
 	res, err = s.FindFree(30)
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 	if res != nil {
-		if err = res.MarkReserved("open reservation 2"); err != nil {
+		if err = res.Reserve("open reservation 2"); err != nil {
 			fmt.Printf("Error making reservation: %v", err)
 		}
 	}
@@ -40,7 +40,7 @@ func main() {
 	res, err = s.FindFree(30)
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 	if res != nil {
-		if err = res.MarkReserved("open reservation 3"); err != nil {
+		if err = res.Reserve("open reservation 3"); err != nil {
 			fmt.Printf("Error making reservation: %v", err)
 		}
 	}
@@ -54,7 +54,7 @@ func main() {
 	}
 
 	fmt.Printf("\n\n\nPlaying around with fresh data\n\n")
-	s, err = subnetcalc.ParseSubnet("10.0.0.0/16")
+	s, err = subnetcalc.Parse("10.0.0.0/16")
 
 	for i := s.Size(); i < 31; i++ {
 		res, err = s.FindFree(i)
@@ -66,7 +66,7 @@ func main() {
 	res, err = s.FindFree(17)
 	fmt.Printf("Added reservation: %s %v\n", res.CIDR(), err)
 	if res != nil {
-		if err = res.MarkReserved("open reservation 4"); err != nil {
+		if err = res.Reserve("open reservation 4"); err != nil {
 			fmt.Printf("Error making reservation: %v", err)
 		}
 	}
