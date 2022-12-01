@@ -1,4 +1,4 @@
-module subnetcalc
+module github.com/kschjeld/subnetcalc
 
 go 1.19
 
