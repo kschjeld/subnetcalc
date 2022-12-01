@@ -108,3 +108,18 @@ func Test_FindFree(t *testing.T) {
 		assert.Equal(t, "10.0.2.32/28", free.CIDR())
 	})
 }
+
+func Test_FindFreeErrors(t *testing.T) {
+
+	t.Run("no suitable", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+
+		s.AddReservation("10.0.0.0/17", "low")
+		s.AddReservation("10.0.128.0/17", "high")
+
+		free, err := s.FindFree(17)
+		assert.Nil(t, free)
+		assert.Error(t, err, ErrDidNotFindSubnet)
+	})
+}

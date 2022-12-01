@@ -143,30 +143,36 @@ func (s *Subnet) Collect(filterFunc ...func(s *Subnet) bool) []*Subnet {
 }
 
 func (s *Subnet) FindFree(requiredSize int) (*Subnet, error) {
-	if s == nil {
-		return nil, nil
-	}
-
 	if s.Size() == requiredSize && s.reservation == "" && s.subReservations == 0 {
 		return s, nil
 	}
 
+	var found *Subnet
+	var err error
 	if s.reservation == "" && s.Size() < requiredSize {
 		s.divide()
 
 		if s.low != nil {
-			s, err := s.low.FindFree(requiredSize)
-			if s != nil || err != nil {
-				return s, err
+			found, err = s.low.FindFree(requiredSize)
+			if err != nil {
+				return nil, err
 			}
 		}
 
-		if s.high != nil {
-			return s.high.FindFree(requiredSize)
+		if found == nil && s.high != nil {
+			found, err = s.high.FindFree(requiredSize)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return nil, nil
+	// Top level detects nothing found, and returns error instead of nil
+	if found == nil && s.parent == nil {
+		return nil, ErrDidNotFindSubnet
+	}
+
+	return found, err
 }
 
 func (s *Subnet) Reserve(name string) error {
