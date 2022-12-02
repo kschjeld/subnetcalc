@@ -111,7 +111,18 @@ func Test_FindFree(t *testing.T) {
 
 func Test_FindFreeErrors(t *testing.T) {
 
-	t.Run("no suitable", func(t *testing.T) {
+	t.Run("propagated up", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+
+		s.AddReservation("10.0.0.0/17", "some subnet")
+
+		free, err := s.FindFree(16)
+		assert.Nil(t, free)
+		assert.Error(t, err)
+	})
+
+	t.Run("siblings", func(t *testing.T) {
 		s, err := Parse("10.0.0.0/16")
 		assert.NoError(t, err, "parse should return no error")
 
