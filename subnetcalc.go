@@ -82,6 +82,10 @@ func (s *Subnet) Reservation() string {
 	return s.reservation
 }
 
+func (s *Subnet) HasChildReservations() bool {
+	return s.subReservations > 0
+}
+
 func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
 	cidr, err := toCIDR(subnet)
 	if err != nil {

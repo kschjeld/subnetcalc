@@ -26,6 +26,27 @@ func Test_SubnetInfo(t *testing.T) {
 	assert.Equal(t, 16, s.Size())
 }
 
+func Test_Children(t *testing.T) {
+	t.Run("Zero", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+		assert.Equal(t, false, s.HasChildReservations())
+	})
+
+	t.Run("Non-zero", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+
+		_, err = s.AddReservation("10.0.0.0/24", "test")
+		assert.NoError(t, err)
+
+		_, err = s.AddReservation("10.0.1.0/24", "test")
+		assert.NoError(t, err)
+
+		assert.Equal(t, true, s.HasChildReservations())
+	})
+}
+
 func Test_ReservationFail(t *testing.T) {
 	t.Run("Not found", func(t *testing.T) {
 		s, err := Parse("10.0.0.0/16")
