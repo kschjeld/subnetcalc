@@ -22,6 +22,7 @@ var ErrCouldNotParse = errors.New("could not parse subnet specification")
 var ErrNotDividable = errors.New("could not divide subnet")
 var ErrAlreadyReserved = errors.New("subnet is already reserved")
 var ErrDidNotFindSubnet = errors.New("could not find suitable subnet")
+var ErrNotReserved = errors.New("subnet is not reserved")
 
 func SelectReserved() func(s *Subnet) bool {
 	return func(s *Subnet) bool {
@@ -104,7 +105,7 @@ func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
 
 		s.reservation = name
 		if s.parent != nil {
-			s.parent.updateSubReservations()
+			s.parent.addSubReservation()
 		}
 		return s, nil
 	}
@@ -193,7 +194,20 @@ func (s *Subnet) Reserve(name string) error {
 
 	s.reservation = name
 	if s.parent != nil {
-		s.parent.updateSubReservations()
+		s.parent.addSubReservation()
+	}
+
+	return nil
+}
+
+func (s *Subnet) UnReserve() error {
+	if s.reservation == "" {
+		return ErrNotReserved
+	}
+
+	s.reservation = ""
+	if s.parent != nil {
+		s.parent.removeSubReservation()
 	}
 
 	return nil
@@ -272,10 +286,17 @@ func (s *Subnet) lowAndHigh() (CIDR, CIDR, error) {
 	return low, high, nil
 }
 
-func (s *Subnet) updateSubReservations() {
+func (s *Subnet) addSubReservation() {
 	s.subReservations = s.subReservations + 1
 	if s.parent != nil {
-		s.parent.updateSubReservations()
+		s.parent.addSubReservation()
+	}
+}
+
+func (s *Subnet) removeSubReservation() {
+	s.subReservations = s.subReservations - 1
+	if s.parent != nil {
+		s.parent.removeSubReservation()
 	}
 }
 
