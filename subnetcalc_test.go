@@ -47,7 +47,7 @@ func Test_Children(t *testing.T) {
 	})
 }
 
-func Test_ReservationFail(t *testing.T) {
+func Test_AddReservationFail(t *testing.T) {
 	t.Run("Not found", func(t *testing.T) {
 		s, err := Parse("10.0.0.0/16")
 		assert.NoError(t, err, "parse should return no error")
@@ -68,18 +68,12 @@ func Test_ReservationFail(t *testing.T) {
 	})
 }
 
-func Test_UnReserve(t *testing.T) {
-	t.Run("Not reserved", func(t *testing.T) {
+func Test_Reserve(t *testing.T) {
+	t.Run("Initially have no reservations", func(t *testing.T) {
 		s, err := Parse("10.0.0.0/16")
 		assert.NoError(t, err, "parse should return no error")
-
-		f, err := s.FindFree(17)
-		assert.NoError(t, err)
-
-		err = f.UnReserve()
-		assert.ErrorIs(t, err, ErrNotReserved)
-		assert.False(t, f.HasChildReservations())
-		assert.Equal(t, f.subReservations, 0)
+		assert.False(t, s.HasChildReservations())
+		assert.Equal(t, 0, s.subReservations)
 	})
 
 	t.Run("Can reserve and update parent", func(t *testing.T) {
@@ -92,7 +86,22 @@ func Test_UnReserve(t *testing.T) {
 		err = f.Reserve("test")
 		assert.NoError(t, err)
 		assert.True(t, s.HasChildReservations())
-		assert.Equal(t, s.subReservations, 1)
+		assert.Equal(t, 1, s.subReservations)
+	})
+}
+
+func Test_UnReserve(t *testing.T) {
+	t.Run("Not reserved", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+
+		f, err := s.FindFree(17)
+		assert.NoError(t, err)
+
+		err = f.UnReserve()
+		assert.ErrorIs(t, err, ErrNotReserved)
+		assert.False(t, f.HasChildReservations())
+		assert.Equal(t, 0, f.subReservations)
 	})
 
 	t.Run("Can unreserve and update parent", func(t *testing.T) {
@@ -105,12 +114,48 @@ func Test_UnReserve(t *testing.T) {
 		err = f.Reserve("test")
 		assert.NoError(t, err)
 		assert.True(t, s.HasChildReservations())
-		assert.Equal(t, s.subReservations, 1)
+		assert.Equal(t, 1, s.subReservations)
 
 		err = f.UnReserve()
 		assert.NoError(t, err)
 		assert.False(t, s.HasChildReservations())
-		assert.Equal(t, s.subReservations, 0)
+		assert.Equal(t, 0, s.subReservations)
+
+	})
+
+	t.Run("Can unreserve and update parent with multiple children", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+
+		// Reserve sub 1
+		s1, err := s.FindFree(17)
+		assert.NoError(t, err)
+
+		err = s1.Reserve("test")
+		assert.NoError(t, err)
+		assert.True(t, s.HasChildReservations())
+		assert.Equal(t, 1, s.subReservations)
+
+		// Reserve sub 2
+		s2, err := s.FindFree(17)
+		assert.NoError(t, err)
+
+		err = s2.Reserve("test")
+		assert.NoError(t, err)
+		assert.True(t, s.HasChildReservations())
+		assert.Equal(t, 2, s.subReservations)
+
+		// Unreserve sub 2
+		err = s2.UnReserve()
+		assert.NoError(t, err)
+		assert.True(t, s.HasChildReservations())
+		assert.Equal(t, 1, s.subReservations)
+
+		// Unreserve sub 1
+		err = s1.UnReserve()
+		assert.NoError(t, err)
+		assert.False(t, s.HasChildReservations())
+		assert.Equal(t, 0, s.subReservations)
 
 	})
 }
