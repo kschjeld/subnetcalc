@@ -24,24 +24,28 @@ var ErrAlreadyReserved = errors.New("subnet is already reserved")
 var ErrDidNotFindSubnet = errors.New("could not find suitable subnet")
 var ErrNotReserved = errors.New("subnet is not reserved")
 
+// SelectReserved is a collector helper function selecting reserved subnets
 func SelectReserved() func(s *Subnet) bool {
 	return func(s *Subnet) bool {
 		return s.Reservation() != ""
 	}
 }
 
+// SelectAvailable is a collector helper function selecting free subnets
 func SelectAvailable() func(s *Subnet) bool {
 	return func(s *Subnet) bool {
 		return s.Reservation() == "" && s.subReservations == 0
 	}
 }
 
+// SelectWithSize is a collector helper function selecting subnets of a given size
 func SelectWithSize(size int) func(s *Subnet) bool {
 	return func(s *Subnet) bool {
 		return s.Size() == size
 	}
 }
 
+// Parse will parse a CIDR string and return a Subnet for further manipulation
 func Parse(s string) (*Subnet, error) {
 	c, err := toCIDR(s)
 	if err != nil {
@@ -59,6 +63,7 @@ func Parse(s string) (*Subnet, error) {
 	return subnet, nil
 }
 
+// CIDR returns CIDR range of subnet as a string
 func (s *Subnet) CIDR() string {
 	if s != nil {
 		return s.cidr.net.String()
@@ -66,29 +71,35 @@ func (s *Subnet) CIDR() string {
 	return ""
 }
 
+// Size returns size of subnet as a string
 func (s *Subnet) Size() int {
 	size, _ := s.cidr.net.Mask.Size()
 	return size
 }
 
+// FirstIP returns the first usable IP in the subnet as a string
 func (s *Subnet) FirstIP() string {
 	return inetNToA(inetBToN(s.cidr.net.IP) + 1)
 }
 
+// LastIP returns the last usable IP in the subnet as a string
 func (s *Subnet) LastIP() string {
 	return inetNToA(inetSubnetLastAddress(inetBToN(s.cidr.net.IP), s.Size()) - 1)
 }
 
+// Reservation will return the current reservation name of the subnet, if set
 func (s *Subnet) Reservation() string {
 	return s.reservation
 }
 
+// HasChildReservations is true if the subnet as any reserved child subnets
 func (s *Subnet) HasChildReservations() bool {
 	return s.subReservations > 0
 }
 
-func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
-	cidr, err := toCIDR(subnet)
+// AddReservation adds a predefined reservation for the specified subnet subnetCidr with the given name
+func (s *Subnet) AddReservation(subnetCidr string, name string) (*Subnet, error) {
+	cidr, err := toCIDR(subnetCidr)
 	if err != nil {
 		return nil, err
 	}
@@ -113,15 +124,16 @@ func (s *Subnet) AddReservation(subnet string, name string) (*Subnet, error) {
 	if s.cidr.net.Contains(cidr.net.IP) {
 		_ = s.divide()
 		if s.low != nil && s.low.cidr.net.Contains(cidr.net.IP) {
-			return s.low.AddReservation(subnet, name)
+			return s.low.AddReservation(subnetCidr, name)
 		} else if s.high != nil {
-			return s.high.AddReservation(subnet, name)
+			return s.high.AddReservation(subnetCidr, name)
 		}
 	}
 
 	return nil, ErrDidNotFindSubnet
 }
 
+// Collect will do a left first search of the subnet tree hierarchy and apply the specified filter functions
 func (s *Subnet) Collect(filterFunc ...func(s *Subnet) bool) []*Subnet {
 	var res []*Subnet
 
@@ -147,6 +159,7 @@ func (s *Subnet) Collect(filterFunc ...func(s *Subnet) bool) []*Subnet {
 	return res
 }
 
+// FindFree searches for an available subnet of the given size
 func (s *Subnet) FindFree(requiredSize int) (*Subnet, error) {
 	if s.Size() == requiredSize && s.reservation == "" && s.subReservations == 0 {
 		return s, nil
@@ -180,6 +193,7 @@ func (s *Subnet) FindFree(requiredSize int) (*Subnet, error) {
 	return found, err
 }
 
+// Reserve adds a reservation on the subnet if is is free. Readding with same reservation name will not fail.
 func (s *Subnet) Reserve(name string) error {
 	if s == nil {
 		return nil
@@ -200,6 +214,21 @@ func (s *Subnet) Reserve(name string) error {
 	return nil
 }
 
+// FindFreeAndReserve combines FindFree and Reserve into one operation
+func (s *Subnet) FindFreeAndReserve(size int, name string) (*Subnet, error) {
+	sn, err := s.FindFree(size)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = sn.Reserve(name); err != nil {
+		return nil, err
+	}
+
+	return sn, nil
+}
+
+// UnReserve removes a reservation
 func (s *Subnet) UnReserve() error {
 	if s.reservation == "" {
 		return ErrNotReserved

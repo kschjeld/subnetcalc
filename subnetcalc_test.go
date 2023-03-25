@@ -88,6 +88,18 @@ func Test_Reserve(t *testing.T) {
 		assert.True(t, s.HasChildReservations())
 		assert.Equal(t, 1, s.subReservations)
 	})
+
+	t.Run("Combined FindFreeAndReserve works the same way", func(t *testing.T) {
+		s, err := Parse("10.0.0.0/16")
+		assert.NoError(t, err, "parse should return no error")
+
+		_, err = s.FindFreeAndReserve(17, "test")
+		assert.NoError(t, err)
+
+		assert.True(t, s.HasChildReservations())
+		assert.Equal(t, 1, s.subReservations)
+	})
+
 }
 
 func Test_UnReserve(t *testing.T) {
