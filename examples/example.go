@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		// This was supposed to fail, it was already defined
 	} else {
-		panic(fmt.Errorf("did mot fail adding predefined subnet: %v", err))
+		panic(fmt.Errorf("did not fail adding predefined subnet: %v", err))
 	}
 
 	// Find a new 24-subnet
